@@ -1,17 +1,14 @@
 /*
-
-File: Controller.m
-
+    File: Controller.m
 Abstract: Handles all UI interaction and code for saving the image.
-
-Version: 1.0
+ Version: 1.1
 
 Disclaimer: IMPORTANT:  This Apple software is supplied to you by Apple
-Inc. ("Apple") in consideration of your agreement to the
-following terms, and your use, installation, modification or
-redistribution of this Apple software constitutes acceptance of these
-terms.  If you do not agree with these terms, please do not use,
-install, modify or redistribute this Apple software.
+Inc. ("Apple") in consideration of your agreement to the following
+terms, and your use, installation, modification or redistribution of
+this Apple software constitutes acceptance of these terms.  If you do
+not agree with these terms, please do not use, install, modify or
+redistribute this Apple software.
 
 In consideration of your agreement to abide by the following terms, and
 subject to these terms, Apple grants you a personal, non-exclusive
@@ -20,14 +17,14 @@ license, under Apple's copyrights in this original Apple software (the
 Software, with or without modifications, in source and/or binary forms;
 provided that if you redistribute the Apple Software in its entirety and
 without modifications, you must retain this notice and the following
-text and disclaimers in all such redistributions of the Apple Software. 
-Neither the name, trademarks, service marks or logos of Apple Computer,
-Inc. may be used to endorse or promote products derived from the Apple
-Software without specific prior written permission from Apple.  Except
-as expressly stated in this notice, no other rights or licenses, express
-or implied, are granted by Apple herein, including but not limited to
-any patent rights that may be infringed by your derivative works or by
-other works in which the Apple Software may be incorporated.
+text and disclaimers in all such redistributions of the Apple Software.
+Neither the name, trademarks, service marks or logos of Apple Inc. may
+be used to endorse or promote products derived from the Apple Software
+without specific prior written permission from Apple.  Except as
+expressly stated in this notice, no other rights or licenses, express or
+implied, are granted by Apple herein, including but not limited to any
+patent rights that may be infringed by your derivative works or by other
+works in which the Apple Software may be incorporated.
 
 The Apple Software is provided by Apple on an "AS IS" basis.  APPLE
 MAKES NO WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION
@@ -44,30 +41,38 @@ AND WHETHER UNDER THEORY OF CONTRACT, TORT (INCLUDING NEGLIGENCE),
 STRICT LIABILITY OR OTHERWISE, EVEN IF APPLE HAS BEEN ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Copyright © 2007 Apple Inc., All Rights Reserved
+Copyright (C) 2010 Apple Inc. All Rights Reserved.
 
 */
 
 #import "Controller.h"
 #import "DataProvider.h"
 
-// Callback for our custom data provider in order to provide progress for UI.
-void MyProgressCallback(void *context, float percentProgress)
-{
-	[(Controller*)context progress:percentProgress];
-}
-
-// Callback for our custom data provider to determine if we should stop providing data in order to implement cancel
-bool MyCancelCallback(void *context)
-{
-	return [(Controller*)context userCanceled];
-}
+@interface Controller()
+-(bool)userCanceled;
+-(void)progress:(float)percent;
+-(void)updateProgress;
+-(void)startSaveUI;
+-(void)endSaveUI;
+@end
 
 @implementation Controller
 
 static NSString *kWidthKey = @"width";
 static NSString *kHeightKey = @"height";
 static NSString *kLocationKey = @"location";
+
+// Callback for our custom data provider in order to provide progress for UI.
+static void MyProgressCallback(void *context, float percentProgress)
+{
+	[(Controller*)context progress:percentProgress];
+}
+
+// Callback for our custom data provider to determine if we should stop providing data in order to implement cancel
+static bool MyCancelCallback(void *context)
+{
+	return [(Controller*)context userCanceled];
+}
 
 -(void)saveTo:(NSDictionary*)info;
 {
@@ -122,18 +127,18 @@ static NSString *kLocationKey = @"location";
 
 -(IBAction)save:(id)sender
 {
+	#pragma unused(sender)
 	// Clear the message just to avoid confusion.
 	[messageText setStringValue:@""];
 	
 	// Verify the image width & height. Appkit's NSNumberFormatter
 	// will complain about out of range, but won't actually clip the range
-	// We just clip the range here and push it back out to the UI, not the most
-	// user friendly, but it keeps the data provider from exceeding the maximum
-	// limits of the data types that it uses (which is 4GB) and from underflowing.
+	// We just clip the range here and push it back out to the UI.
+	// Since JPEG doesn't seem to support images larger than 65500 per side, that is our new limit.
 	int w = [width intValue], h = [height intValue];
-	if((w < 1) || (w > 32767) || (h < 1) || (h > 32767))
+	if((w < 1) || (w > 65500) || (h < 1) || (h > 65500))
 	{
-		[messageText setStringValue:[NSString stringWithFormat:@"Cannot %i x %i image", w, h]];
+		[messageText setStringValue:[NSString stringWithFormat:@"%i x %i is too big", w, h]];
 	}
 	else
 	{
@@ -144,7 +149,6 @@ static NSString *kLocationKey = @"location";
 		[panel setCanSelectHiddenExtension:YES];
 		[panel setRequiredFileType:@"jpg"];
 		[panel setAllowsOtherFileTypes:NO];
-		[panel setTreatsFilePackagesAsDirectories:YES];
 		
 		[panel
 			beginSheetForDirectory:nil
@@ -158,6 +162,7 @@ static NSString *kLocationKey = @"location";
 
 -(void)saveImageDidEnd:(NSSavePanel*)panel returnCode:(int)returnCode contextInfo:(void*)contextInfo
 {
+	#pragma unused(contextInfo)
 	// If the user elected to save, then do so.
 	if(returnCode == NSOKButton)
 	{
@@ -172,6 +177,7 @@ static NSString *kLocationKey = @"location";
 
 -(IBAction)cancel:(id)sender
 {
+	#pragma unused(sender)
 	// Set the cancel flag - this will be picked up later in the Data Provider.
 	cancel = true;
 }
